@@ -70,14 +70,15 @@
       (alter-var-root #'*after-shutdown-fns* dissoc ctx)
       (alter-var-root #'*shutting-down* disj ctx))))
 
-; Ensures that on shutdown, any "active" contexts are shut down, and their
-; before- and after-shutdown hooks are called.
-(.addShutdownHook (Runtime/getRuntime)
-  (Thread.
-    (fn []
-      (doseq [ctx (set/union (set (keys *before-shutdown-fns*))
-                             (set (keys *after-shutdown-fns*)))]
-        (shut-down-context! ctx)))))
+(defn shut-down! []
+  (doseq [ctx (set/union (set (keys *before-shutdown-fns*))
+                              (set (keys *after-shutdown-fns*)))]
+    (shut-down-context! ctx)))
+
+;; Registers `shut-down!` as hook to be run when the active runtime closes.
+(defn enable-shut-down-on-exit []
+  (.addShutdownHook (Runtime/getRuntime)
+    (Thread. ^Runnable shut-down!)))
 
 (defmacro with-context
   "Executes `body` given an existing ZMQ context `ctx`.
